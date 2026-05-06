@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PL Conference Deadlines</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <nav class="top-nav">
+        <a href="index.html">Home</a>
+        <a href="conference_deadlines.html">PL Deadlines</a>
+    </nav>
+
+<div class="compact-container">
+<h1>PL Conference Deadlines</h1>
+<table class="compact-table">
+  <thead>
+    <tr>
+      <th>Venue</th>
+      <th>Tier</th>
+      <th>Location</th> <!-- Added Location Header -->
+      <th>Deadline</th>
+      <th class="countdown">Time Left</th>
+    </tr>
+  </thead>
+  <tbody id="table-body">
+    <!-- Populated dynamically by JavaScript -->
+  </tbody>
+</table>
+
+<h2>Journals</h2>
+<ul class="journal-list">
+  <li>
+    <a href="https://dl.acm.org/journal/toplas" target="_blank" rel="noopener noreferrer">TOPLAS</a>
+    <span class="desc">ACM Transactions on Programming Languages and Systems</span>
+  </li>
+  <li>
+    <a href="https://jfp.episciences.org/" target="_blank" rel="noopener noreferrer">JFP</a>
+    <span class="desc">Journal of Functional Programming</span>
+  </li>
+  <li>
+    <a href="https://lmcs.episciences.org/" target="_blank" rel="noopener noreferrer">LMCS</a>
+    <span class="desc">Logical Methods in Computer Science</span>
+  </li>
+  <li>
+    <a href="https://programming-journal.org/" target="_blank" rel="noopener noreferrer">Programming</a>
+    <span class="desc">The Art, Science, and Engineering of Programming</span>
+  </li>
+</ul>
+</div>
+</body>
+<script type="text/csv" id="csv-data">
+name,tier,date,location,url
+"POPL 2027","A*","2026-07-09","Mexico City, Mexico","https://conf.researchr.org/home/POPL-2027"
+"PLDI 2026","A*","2025-11-13","Boulder, Colorado, USA","https://pldi26.sigplan.org/"
+"LICS 2026 @ FLoC","A*","2026-01-21","Lisbon, Portugal","https://lics.siglog.org/lics26/"
+"OOPSLA 2026 R2","A","2026-03-17","Oakland, California, USA","https://2026.splashcon.org/track/oopsla-2026"
+"OOPSLA 2026 R1","A","2025-10-10","Oakland, California, USA","https://2026.splashcon.org/track/oopsla-2026"
+"ICFP 2026","A","2026-02-19","Indianapolis, USA","https://icfp26.sigplan.org/"
+"ESOP 2027 @ ETAPS R1","A","2026-05-28","Copenhagen, Denmark","https://etaps.org/2027/conferences/esop/"
+"ESOP 2027 @ ETAPS R2","A","2026-10-15","Copenhagen, Denmark","https://etaps.org/2027/conferences/esop/"
+"ECOOP 2026 R1","A","2025-11-27","Brussels, Belgium","https://2026.ecoop.org/"
+"ECOOP 2026 R2","A","2026-02-12","Brussels, Belgium","https://2026.ecoop.org/"
+"CGO 2026","A","2025-09-11","Sidney, Australia","https://2026.cgo.org/"
+"ITP 2026 @ FLoC","B","2026-02-19","Lisbon, Portugal","https://itp-conference-2026.github.io/"
+"CPP 2026 @ POPL","B","2025-09-12","Rennes, France","https://popl26.sigplan.org/home/CPP-2026"
+"FoSSaCS 2026 @ ETAPS","B","2025-10-16","Turin, Italy","https://etaps.org/2026/conferences/fossacs/"
+"FSCD 2026 @ FLoC","B","2026-01-30","Lisbon, Portugal","https://fscd2026.github.io/"
+"ICLP 2026 @ FLoC","B","2026-02-07","Lisbon, Portugal","https://www.semsys.aau.at/events/iclp2026/"
+"TYPES 2026","Workshop","2026-01-20","Gothenburg, Sweden","https://types2026.cse.chalmers.se/"
+"PEPM 2026 @ POPL","Workshop","2025-10-24","Rennes, France","https://popl26.sigplan.org/home/pepm-2026"
+"LAFI 2026 @ POPL","Workshop","2025-10-30","Rennes, France","https://popl26.sigplan.org/home/lafi-2026"
+"CONCUR 2026","B","2026-04-20","Liverpool, UK","https://confest-2026.github.io/concur/"
+"APLAS 2026","B","2026-06-15","Hong Kong","https://conf.researchr.org/track/aplas-atva-2026/aplas-2026"
+"CP 2026 @ PLDI","Workshop","2026-03-22","Boulder, Colorado, USA","https://pldi26.sigplan.org/home/cp-2026"
+"PLF+PLAID 2026 @ ECOOP","Workshop","","Brussels, Belgium","https://2026.ecoop.org/home/plf-plaid-2026"
+"ARRAY 2026 @ PLDI","Workshop","2026-04-01","Boulder, Colorado, USA","https://pldi26.sigplan.org/home/ARRAY-2026"
+"PaPoC 2026 @ EuroSys","Workshop","2026-01-30","Edinburgh, UK","https://papoc-workshop.github.io/2026/index.html"
+"PERR 2026 @ FLoC","Workshop","2026-05-05","Lisbon, Portugal","https://perr-workshop.github.io/2026/"
+</script>
+<script>
+
+// Simple CSV parser to convert the text into an array of objects
+function parseCSV(csvText) {
+  const lines = csvText.trim().split('\n');
+  if (lines.length === 0) return [];
+  
+  // Extract and clean headers
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  const data = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const rowStr = lines[i].trim();
+    if (!rowStr) continue;
+
+    const values = [];
+    let inQuotes = false;
+    let currentVal = '';
+    
+    // Character-by-character parsing to correctly handle commas inside quotes
+    for (let char of rowStr) {
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        values.push(currentVal);
+        currentVal = '';
+      } else {
+        currentVal += char;
+      }
+    }
+    values.push(currentVal);
+
+    const obj = {};
+    headers.forEach((header, index) => {
+      let val = values[index] !== undefined ? values[index].trim() : '';
+      
+      // Remove wrapping quotes if they exist
+      if (val.startsWith('"') && val.endsWith('"')) {
+        val = val.slice(1, -1);
+      }
+      
+      // Convert empty strings to null so logic like `d.date` correctly identifies TBA
+      obj[header] = val === '' ? null : val;
+    });
+    data.push(obj);
+  }
+  return data;
+}
+
+function formatTimeLeft(diffMs) {
+  if (diffMs < 0) return "Past";
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (days === 0) return "Today";
+  if (days === 1) return "1 day";
+  
+  const months = Math.floor(days / 30);
+  if (months > 0) {
+    const remainDays = days % 30;
+    return remainDays > 0 ? `${months}mo ${remainDays}d` : `${months}mo`;
+  }
+  return `${days} days`;
+}
+function renderTable(data) {
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+  const now = new Date();
+  
+  data.forEach(d => {
+    if (d.date) {
+      let originalDateObj = new Date(d.date + "T23:59:59-12:00");
+      let dateObj = new Date(originalDateObj);
+      let wasPast = originalDateObj < now;
+      let predicted = false;
+
+      // If original date has passed, predict next year's deadline
+      if (wasPast) {
+        dateObj.setFullYear(dateObj.getFullYear() + 1);
+        predicted = true;
+      }
+
+      d.originalDateObj = originalDateObj;
+      d.dateObj = dateObj;
+      d.diff = d.dateObj - now;
+      d.wasPast = wasPast;   // keep row grey if true
+      d.isTBA = false;
+      d.predicted = predicted;
+    } else {
+      d.isTBA = true;
+      d.wasPast = false;
+      d.predicted = false;
+    }
+  });
+
+  // Sort entries: Upcoming/predicted (soonest first) -> TBA
+  const upcoming = data
+    .filter(d => !d.isTBA)
+    .sort((a, b) => a.diff - b.diff);
+
+  const tba = data.filter(d => d.isTBA);
+
+  const sortedData = [...upcoming, ...tba];
+
+  sortedData.forEach(d => {
+    const tr = document.createElement('tr');
+
+    if (d.wasPast) tr.className = 'past';
+    if (d.isTBA) tr.className = 'tba';
+    
+    let dateStr = "TBA";
+    let timeStr = "-";
+    
+    if (!d.isTBA) {
+      dateStr = d.dateObj.toLocaleString('en-GB', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZoneName: 'short'
+      });
+
+      if (d.predicted) {
+        dateStr += " (pred.)";
+      }
+
+      timeStr = formatTimeLeft(d.diff);
+    }
+
+    const linkUrl = d.url || `https://www.google.com/search?q=${encodeURIComponent(d.name + " submission deadline")}`;
+    
+    tr.innerHTML = `
+      <td><a href="${linkUrl}" target="_blank" rel="noopener noreferrer">${d.name}</a></td>
+      <td>${d.tier}</td>
+      <td>${d.location || 'TBD'}</td>
+      <td>${dateStr}</td>
+      <td class="countdown">${timeStr}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+
+
+function init() {
+  try {
+    // Read the raw CSV text directly from the HTML script tag
+    const csvText = document.getElementById('csv-data').textContent;
+    
+    // Parse the data and render the table
+    const data = parseCSV(csvText);
+    renderTable(data);
+  } catch (error) {
+    console.error("Failed to parse inline conference data:", error);
+    const tbody = document.getElementById('table-body');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Error loading schedule data.</td></tr>';
+    }
+  }
+}
+init();
+</script>
+</html>
