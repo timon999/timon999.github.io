@@ -4,6 +4,8 @@
 }
 body {
     background-color: #e5e5e5;
+    /*background-image: radial-gradient(#a0a0a0 20%, transparent 20%);
+    background-size: 40px 40px;*/
     color: #000;
     font-family: 'Courier New', Courier, monospace;
     margin: 0;
@@ -45,7 +47,6 @@ h2 {
     border-bottom: 3px dashed #000;
     padding-bottom: 0.5rem;
     margin-bottom: 0.5rem;
-    text-transform: uppercase;
 }
 a.external-link {
     color: #000;

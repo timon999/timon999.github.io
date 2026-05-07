@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Animator (CGP & CPPN)</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background-color: #e5e5e5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .app-layout {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            width: 100%;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+        
+        .paper-card {
+            background: #fff;
+            padding: 1rem;
+            border: 4px solid #000;
+            box-shadow: 8px 8px 0px #000;
+            margin-bottom: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .panel-header {
+            font-size: 1.2rem;
+            font-weight: 900;
+            border-bottom: 3px dashed #000;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .info-window { width: 100%; }
+        .sidebar-window { width: 260px; flex-shrink: 0; }
+        .ops-window { width: 240px; flex-shrink: 0; }
+        .canvas-window { 
+            flex: 1;
+            min-width: 300px;
+            max-width: 836px;
+        }
+
+        button, select {
+            background-color: #00ffff;
+            border: 2px solid #000;
+            font-weight: bold;
+            padding: 0.4rem 0.8rem;
+            cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            box-shadow: 4px 4px 0px #000;
+            margin-top: 5px;
+            color: #000;
+            width: 100%;
+        }
+        select { width: auto; font-size: 1rem; padding: 0.2rem 0.5rem; margin: 0; }
+        button:hover, select:hover { background-color: #ff00ff; color: #fff; transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
+        button:active, select:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px #000; }
+        
+        .sidebar-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .sidebar-grid-field, .sidebar-inline-field {
+            display: flex;
+            flex-direction: column;
+            font-size: 0.9rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-top: 8px;
+        }
+        .sidebar-grid-field input, .sidebar-inline-field input {
+            border: 2px solid #000;
+            padding: 4px;
+            font-family: inherit;
+            margin-top: 4px;
+        }
+
+        .saved-shader-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            margin-bottom: 4px;
+        }
+        .saved-shader-item:hover { background: #ffff00; border-color: #000; color: #000; }
+        .saved-shader-item.active-saved { background: #000; color: #fff; }
+        .saved-shader-item .shader-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-weight: bold; }
+        .saved-shader-item .delete-btn {
+            background: none; border: none; color: inherit; cursor: pointer; box-shadow: none; font-size: 16px; padding: 0 4px; margin-left: 5px; margin-top: 0; width: auto;
+        }
+        .saved-shader-item .delete-btn:hover { color: #ff0000; transform: none; background: none; border: none; box-shadow: none;}
+        
+        .op-group { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; padding-right: 10px;}
+        .op-option { display: flex; align-items: center; padding: 2px 4px; }
+        .op-option:hover { background: #ffff00; }
+        .op-option input[type=checkbox] { cursor: pointer; accent-color: #000; width: 16px; height: 16px; margin: 0;}
+        .op-option label { font-size: 12px; font-family: monospace; margin-left: 8px; user-select: none; font-weight: bold;}
+        
+        .ops-btn-row { display: flex; gap: 10px; margin-top: 1rem; }
+        .ops-btn-row button { flex: 1; padding: 0.2rem; }
+
+        .container { position: relative; width: 100%; aspect-ratio: 1; }
+        canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; border: 4px solid #000; box-sizing: border-box;}
+        .grid-overlay { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); pointer-events: none; }
+        .grid-cell { box-sizing: border-box; border: 2px solid rgba(0, 0, 0, 0.2); }
+        .grid-cell.selected { border: 4px solid #fff; box-shadow: inset 0 0 0 4px #000; mix-blend-mode: difference;}
+        
+        #saved-empty { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #666; text-align: center; }
+        
+        .hidden-panel { display: none !important; }
+
+        @media (max-width: 860px) {
+            .app-layout { flex-direction: column; align-items: stretch; }
+            .sidebar-window, .ops-window, .canvas-window { width: 100%; max-width: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="paper-card info-window">
+        <div class="panel-header">
+            <span>GPU Animator</span>
+            <select id="engine-select">
+                <option value="cgp">Mode: CGP</option>
+                <option value="cppn">Mode: CPPN</option>
+            </select>
+        </div>
+        <div class="window-body">
+            <p class="info-copy" id="info-text">
+                Explore evolved shaders. Click on an image to derive new mutations. [ENTER] reinitializes, [Ctrl+Z] undoes the last step.
+            </p>
+            <span id="fps">FPS: ...</span>
+        </div>
+    </div>
+
+    <div class="app-layout">
+        <div class="paper-card sidebar-window">
+            <div class="panel-header">
+                <span>Saved Shaders</span>
+            </div>
+            <div class="window-body">
+                <div class="saved-panel" id="saved-list"><div id="saved-empty">No saved shaders yet.</div></div>
+                <div class="sidebar-actions">
+                    <button class="action-btn" id="save-btn">Save Current</button>
+                    <button class="action-btn" id="share-btn">Share URL</button>
+                    <div class="sidebar-grid-field">
+                        <label for="export-width">
+                            <span>Width</span>
+                            <input id="export-width" type="number" min="16" max="8192" step="1" value="1920">
+                        </label>
+                        <label for="export-height">
+                            <span>Height</span>
+                            <input id="export-height" type="number" min="16" max="8192" step="1" value="1080">
+                        </label>
+                    </div>
+                    <label class="sidebar-inline-field" for="export-duration">
+                        <span>Video Duration (sec)</span>
+                        <input id="export-duration" type="number" min="0.5" max="60" step="0.5" value="8">
+                    </label>
+                    <button class="action-btn" id="export-btn">Export WebM</button>
+                    <div class="sidebar-status" id="export-status"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="paper-card canvas-window">
+            <div class="panel-header">
+                <span>Population</span>
+                <button id="restart-btn" style="width: auto; margin-top: 0; padding: 0.2rem 0.5rem; font-size: 0.9rem;">Restart</button>
+            </div>
+            <div class="window-body canvas-panel">
+                <div class="container">
+                    <canvas id="glcanvas" width="800" height="800"></canvas>
+                    <div class="grid-overlay" id="overlay">
+                        <div class="grid-cell selected" id="cell-0"></div><div class="grid-cell" id="cell-1"></div><div class="grid-cell" id="cell-2"></div>
+                        <div class="grid-cell" id="cell-3"></div><div class="grid-cell" id="cell-4"></div><div class="grid-cell" id="cell-5"></div>
+                        <div class="grid-cell" id="cell-6"></div><div class="grid-cell" id="cell-7"></div><div class="grid-cell" id="cell-8"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="paper-card ops-window" id="ops-sidebar">
+            <div class="panel-header">
+                <span id="ops-panel-title">Operations</span>
+            </div>
+            <div class="window-body">
+                <div class="ops-panel op-group" id="ops-list"></div>
+                <div class="ops-btn-row">
+                    <button id="ops-all">All</button>
+                    <button id="ops-none">None</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="paper-card ops-window hidden-panel" id="inputs-sidebar">
+            <div class="panel-header">
+                <span>Inputs</span>
+            </div>
+            <div class="window-body">
+                <div class="ops-panel op-group" id="input-list"></div>
+                <div class="ops-btn-row">
+                    <button id="inputs-all">All</button>
+                    <button id="inputs-none">None</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const POP_SIZE = 9, GRID_DIM = 3;
+const MAX_UNDO = 30;
+
+let currentMode = "cgp"; 
+let population = [];
+let programs = [];
+let selectedGenome = 0;
+let undoStack = [];
+let activeSavedId = null;
+
+const canvas = document.getElementById("glcanvas");
+const gl = canvas.getContext("webgl");
+if (!gl) { throw new Error("WebGL is not supported by this browser."); }
+
+const vertexShaderSource = `attribute vec2 a_position;
+varying vec2 v_uv;
+void main() {
+    v_uv = a_position * 0.5 + 0.5;
+    gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+
+function createShader(context, type, source) {
+    let shader = context.createShader(type);
+    context.shaderSource(shader, source);
+    context.compileShader(shader);
+    if (!context.getShaderParameter(shader, context.COMPILE_STATUS)) {
+        console.error(context.getShaderInfoLog(shader));
+        context.deleteShader(shader);
+        return null;
+    }
+    return shader;
+}
+const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+
+function createProgram(context, sharedVertexShader, fragmentSource) {
+    if (!sharedVertexShader) return null;
+    let fragmentShader = createShader(context, context.FRAGMENT_SHADER, fragmentSource);
+    if (!fragmentShader) return null;
+    let program = context.createProgram();
+    context.attachShader(program, sharedVertexShader);
+    context.attachShader(program, fragmentShader);
+    context.bindAttribLocation(program, 0, "a_position");
+    context.linkProgram(program);
+    context.deleteShader(fragmentShader);
+    if (!context.getProgramParameter(program, context.LINK_STATUS)) {
+        console.error(context.getProgramInfoLog(program));
+        context.deleteProgram(program);
+        return null;
+    }
+    return program;
+}
+
+function createPositionBuffer(context) {
+    const buffer = context.createBuffer();
+    context.bindBuffer(context.ARRAY_BUFFER, buffer);
+    context.bufferData(context.ARRAY_BUFFER, new Float32Array([-1,-1,  1,-1,  -1,1,  1,1]), context.STATIC_DRAW);
+    return buffer;
+}
+function bindPositionBuffer(context, buffer) {
+    context.bindBuffer(context.ARRAY_BUFFER, buffer);
+    context.enableVertexAttribArray(0);
+    context.vertexAttribPointer(0, 2, context.FLOAT, false, 0, 0);
+}
+const positionBuffer = createPositionBuffer(gl);
+
+const rand01 = () => Math.random();
+const randInt = (max) => Math.floor(Math.random() * max);
+function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
+const CGP_P_NODE = 0.1, CGP_P_OUT = 0.2;
+const CGP_N_INPUTS = 3, CGP_N_OUTPUTS = 3, CGP_N_NODES = 15;
+const CGP_OP_NAMES = [
+    "fmaxf", "fminf", "sin01", "cos01", "add01", "hadd01", "or01", "xor01", 
+    "tnorm01", "tconorm01", "sig01", "mult01", "lerp01", "dist01", "einstein01", "perlin01"
+];
+const CGP_OP_FORMULAS = [
+    "max(x, y)", "min(x, y)", "(sin(2π(x+y)) + 1) / 2", "(cos(2π(x+y)) + 1) / 2", "min(x + y, 1)", "(x + y) / 2",
+    "x + y − x·y", "x + y − 2·x·y", "max(0, x + y − 1)", "min(1, x + y)", "1 / (1 + e^(−x−y))",
+    "x · y", "x·(1−y) + y", "min(1, √((x−½)²+(y−½)²) / √½)", "(x·y) / (2 − x − y + x·y)", null
+];
+const CGP_N_OPS = CGP_OP_NAMES.length;
+let cgpEnabledOps = new Array(CGP_N_OPS).fill(true);
+
+function cgpRandEnabledOp() {
+    const active = cgpEnabledOps.reduce((acc, on, i) => { if (on) acc.push(i); return acc; }, []);
+    if (active.length === 0) return randInt(CGP_N_OPS);
+    return active[randInt(active.length)];
+}
+function cgpGenerateNodeInput(currentNodeId) {
+    let maxOptions = CGP_N_INPUTS + currentNodeId;
+    if (maxOptions <= 0) return -CGP_N_INPUTS;
+    return randInt(maxOptions) - CGP_N_INPUTS;
+}
+function cgpInitGenome() {
+    let nodes = [];
+    for (let i = 0; i < CGP_N_NODES; i++) {
+        nodes.push({ func: cgpRandEnabledOp(), in1: cgpGenerateNodeInput(i), in2: cgpGenerateNodeInput(i) });
+    }
+    let outputs = Array.from({length: CGP_N_OUTPUTS}, () => randInt(CGP_N_NODES));
+    return { nodes, outputs };
+}
+function cgpMutate(g) {
+    let newG = { nodes: [], outputs: [] };
+    for (let i = 0; i < CGP_N_OUTPUTS; i++) newG.outputs[i] = (rand01() < CGP_P_OUT) ? randInt(CGP_N_NODES) : g.outputs[i];
+    for (let i = 0; i < CGP_N_NODES; i++) {
+        newG.nodes[i] = {
+            func: (rand01() < CGP_P_NODE) ? cgpRandEnabledOp() : g.nodes[i].func,
+            in1: (rand01() < CGP_P_NODE) ? cgpGenerateNodeInput(i) : g.nodes[i].in1,
+            in2: (rand01() < CGP_P_NODE) ? cgpGenerateNodeInput(i) : g.nodes[i].in2
+        };
+    }
+    return newG;
+}
+function cgpGetActiveNodes(g) {
+    let active = new Array(CGP_N_NODES).fill(false);
+    function mark(idx) {
+        if (idx < 0 || idx >= CGP_N_NODES || active[idx]) return;
+        active[idx] = true;
+        mark(g.nodes[idx].in1);
+        mark(g.nodes[idx].in2);
+    }
+    g.outputs.forEach(idx => mark(idx));
+    return active;
+}
+
+const cgpGlslHeader = `
+precision highp float;
+varying vec2 v_uv;
+uniform float u_time;
+#define PI 3.14159265359
+
+float op_fmaxf(float x, float y) { return max(x, y); }
+float op_fminf(float x, float y) { return min(x, y); }
+float op_sin01(float x, float y) { return (sin(2.0 * PI * (x + y)) + 1.0) / 2.0; }
+float op_cos01(float x, float y) { return (cos(2.0 * PI * (x + y)) + 1.0) / 2.0; }
+float op_add01(float x, float y) { return min(x + y, 1.0); }
+float op_hadd01(float x, float y) { return (x + y) / 2.0; }
+float op_or01(float x, float y) { return x + y - x * y; }
+float op_xor01(float x, float y) { return x + y - 2.0 * x * y; }
+float op_tnorm01(float x, float y) { return max(0.0, x + y - 1.0); }
+float op_tconorm01(float x, float y) { return min(1.0, x + y); }
+float op_sig01(float x, float y) { return 1.0 / (1.0 + exp(-x - y)); }
+float op_mult01(float x, float y) { return x * y; }
+float op_lerp01(float x, float y) { return x * (1.0 - y) + y; }
+float op_dist01(float x, float y) { return min(1.0, sqrt((x - 0.5)*(x - 0.5) + (y - 0.5)*(y - 0.5)) / 0.707106); }
+float op_einstein01(float x, float y) { return (x * y) / (2.0 - x - y + x * y + 0.000001); }
+vec2 _hash2(vec2 p) {
+    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+    return -1.0 + 2.0 * fract(sin(p) * 43758.5453);
+}
+float op_perlin01(float x, float y) {
+    vec2 p = vec2(x, y) * 4.0;
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    float v = mix(
+        mix(dot(_hash2(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0)),
+            dot(_hash2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
+        mix(dot(_hash2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)),
+            dot(_hash2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x), u.y);
+    return clamp(v * 0.5 + 0.5, 0.0, 1.0);
+}
+void main() {
+    float in0 = v_uv.x;
+    float in1 = v_uv.y;
+    float in2 = u_time;
+`;
+const cgpGlslFooter = `
+    gl_FragColor = vec4(out0, out1, out2, 1.0);
+}`;
+
+function cgpGenomeToGLSL(g) {
+    let active = cgpGetActiveNodes(g);
+    let body = "";
+    for (let i = 0; i < CGP_N_NODES; i++) {
+        if (!active[i]) continue;
+        let n = g.nodes[i];
+        let arg1 = n.in1 < 0 ? `in${n.in1 + CGP_N_INPUTS}` : `x${n.in1}`;
+        let arg2 = n.in2 < 0 ? `in${n.in2 + CGP_N_INPUTS}` : `x${n.in2}`;
+        body += `    float x${i} = op_${CGP_OP_NAMES[n.func]}(${arg1}, ${arg2});\n`;
+    }
+    for (let i = 0; i < CGP_N_OUTPUTS; i++) {
+        let outIdx = g.outputs[i];
+        if (outIdx >= 0 && active[outIdx]) {
+            body += `    float out${i} = x${outIdx};\n`;
+        } else {
+            body += `    float out${i} = 0.0;\n`;
+        }
+    }
+    return cgpGlslHeader + body + cgpGlslFooter;
+}
+
+function cgpPack(g) {
+    const bits = [];
+    const push = (val, n) => { for (let i = n - 1; i >= 0; i--) bits.push((val >> i) & 1); };
+    for (const node of g.nodes) {
+        push(node.func, 4);
+        push(node.in1 + CGP_N_INPUTS, 5);
+        push(node.in2 + CGP_N_INPUTS, 5);
+    }
+    for (const out of g.outputs) push(out, 4);
+    while (bits.length % 8 !== 0) bits.push(0);
+    const bytes = [];
+    for (let i = 0; i < bits.length; i += 8) {
+        let b = 0;
+        for (let j = 0; j < 8; j++) b = (b << 1) | bits[i + j];
+        bytes.push(b);
+    }
+    return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function cgpUnpack(b64) {
+    const s = b64.replace(/-/g, "+").replace(/_/g, "/");
+    const binary = atob(s + "=".repeat((4 - s.length % 4) % 4));
+    const bits = [];
+    for (let i = 0; i < binary.length; i++) {
+        const b = binary.charCodeAt(i);
+        for (let j = 7; j >= 0; j--) bits.push((b >> j) & 1);
+    }
+    let pos = 0;
+    const read = (n) => { let v = 0; for (let i = 0; i < n; i++) v = (v << 1) | (bits[pos++] || 0); return v; };
+    const nodes = [];
+    for (let i = 0; i < CGP_N_NODES; i++) {
+        const func = read(4);
+        nodes.push({ func, in1: read(5) - CGP_N_INPUTS, in2: read(5) - CGP_N_INPUTS });
+    }
+    const outputs = [];
+    for (let i = 0; i < CGP_N_OUTPUTS; i++) outputs.push(read(4));
+    return { nodes, outputs };
+}
+
+const CPPN_N_HIDDEN = 8, CPPN_N_OUTPUTS = 3;
+const CPPN_INPUT_NAMES = ["x", "y", "radius", "sinAngle", "cosAngle", "time", "bias"];
+const CPPN_INPUT_FORMULAS = ["x Position", "y Position", "sqrt(x^2 + y^2)", "sin(atan(y, x))", "cos(atan(y, x))", "sin(time * 0.9)", "1"];
+const CPPN_N_INPUTS = CPPN_INPUT_NAMES.length;
+const CPPN_WEIGHT_LIMIT = 3.0, CPPN_PACK_VERSION = 1;
+const CPPN_P_ACTIVATION = 0.12, CPPN_P_WEIGHT = 0.22, CPPN_P_BIAS = 0.18, CPPN_P_RESET = 0.05, CPPN_WEIGHT_SIGMA = 0.42;
+
+const CPPN_OP_NAMES = ["linear", "sin", "cos", "gauss", "tanh", "sigmoid", "abs", "square", "triangle", "step", "relu"];
+const CPPN_OP_FORMULAS = ["x", "sin(pi*x)", "cos(pi*x)", "exp(-2*x^2)", "tanh(x)", "2/(1+exp(-x)) - 1", "abs(x)", "x^2", "1 - 2*abs(fract((x+1)/2) - 0.5)", "x >= 0 ? 1 : -1", "x >= 0 ? x : 0"];
+const CPPN_N_OPS = CPPN_OP_NAMES.length;
+let cppnEnabledOps = new Array(CPPN_N_OPS).fill(true);
+let cppnEnabledInputs = new Array(CPPN_N_INPUTS).fill(true);
+
+const cppnGlslHeader = `
+precision highp float;
+varying vec2 v_uv;
+uniform float u_time;
+uniform float u_aspect;
+#define PI 3.14159265359
+
+float cp_linear(float x) { return x; }
+float cp_sin(float x) { return sin(PI * x); }
+float cp_cos(float x) { return cos(PI * x); }
+float cp_gauss(float x) { return exp(-2.0 * x * x); }
+float cp_tanh(float x) { float ex = exp(2.0 * x); return (ex - 1.0) / (ex + 1.0); }
+float cp_sigmoid(float x) { return 2.0 / (1.0 + exp(-x)) - 1.0; }
+float cp_abs(float x) { return abs(x); }
+float cp_square(float x) { return x * x; }
+float cp_triangle(float x) { float wrapped = fract((x + 1.0) * 0.5); return 1.0 - 4.0 * abs(wrapped - 0.5); }
+float cp_step(float x) { return x >= 0.0 ? 1.0 : -1.0; }
+float cp_relu(float x) { return x >= 0.0 ? x : 0.0; }
+
+void main() {
+    float aspect = (u_aspect == 0.0) ? 1.0 : u_aspect;
+    vec2 pos = v_uv * 2.0 - 1.0;
+    pos.x *= aspect;
+    float angle = atan(pos.y, pos.x);
+    float in0 = pos.x; float in1 = pos.y; float in2 = length(pos);
+    float in3 = sin(angle); float in4 = cos(angle);
+    float in5 = sin(u_time * 0.9); float in6 = 1.0;
+`;
+const cppnGlslFooter = `
+    gl_FragColor = vec4(out0, out1, out2, 1.0);
+}`;
+
+function cppnRandWeight() { return (Math.random() * 2.0 - 1.0) * 1.35; }
+function cppnRandNormal() {
+    let u=0, v=0; while(u===0) u=Math.random(); while(v===0) v=Math.random();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+function cppnRandEnabledOp() {
+    const active = cppnEnabledOps.reduce((acc, isEnabled, i) => { if (isEnabled) acc.push(i); return acc; }, []);
+    if (active.length === 0) return randInt(CPPN_N_OPS);
+    return active[randInt(active.length)];
+}
+function cppnMaskInputWeight(w, i) { if (i < CPPN_N_INPUTS && !cppnEnabledInputs[i]) return 0; return w; }
+function cppnRandomWeightForIndex(i) { return cppnMaskInputWeight(cppnRandWeight(), i); }
+
+function cppnApplyInputMask(g) {
+    return {
+        hidden: g.hidden.map(n => ({ activation: n.activation, bias: n.bias, weights: n.weights.map((w, i) => cppnMaskInputWeight(w, i)) })),
+        outputs: g.outputs.map(n => ({ bias: n.bias, weights: n.weights.map((w, i) => cppnMaskInputWeight(w, i)) }))
+    };
+}
+function cppnInitGenome() {
+    const hidden = [];
+    for (let i = 0; i < CPPN_N_HIDDEN; i++) {
+        hidden.push({
+            activation: cppnRandEnabledOp(), bias: cppnRandWeight(),
+            weights: Array.from({ length: CPPN_N_INPUTS + i }, (_, wi) => cppnRandomWeightForIndex(wi))
+        });
+    }
+    const outputs = Array.from({ length: CPPN_N_OUTPUTS }, () => ({
+        bias: cppnRandWeight(),
+        weights: Array.from({ length: CPPN_N_INPUTS + CPPN_N_HIDDEN }, (_, wi) => cppnRandomWeightForIndex(wi))
+    }));
+    return { hidden, outputs };
+}
+function cppnMutateScalar(v, chance) {
+    if (rand01() >= chance) return v;
+    if (rand01() < CPPN_P_RESET) return cppnRandWeight();
+    return clamp(v + cppnRandNormal() * CPPN_WEIGHT_SIGMA, -CPPN_WEIGHT_LIMIT, CPPN_WEIGHT_LIMIT);
+}
+function cppnMutate(g) {
+    return cppnApplyInputMask({
+        hidden: g.hidden.map(n => ({
+            activation: rand01() < CPPN_P_ACTIVATION ? cppnRandEnabledOp() : n.activation,
+            bias: cppnMutateScalar(n.bias, CPPN_P_BIAS),
+            weights: n.weights.map((w, i) => cppnMaskInputWeight(cppnMutateScalar(w, CPPN_P_WEIGHT), i))
+        })),
+        outputs: g.outputs.map(n => ({
+            bias: cppnMutateScalar(n.bias, CPPN_P_BIAS),
+            weights: n.weights.map((w, i) => cppnMaskInputWeight(cppnMutateScalar(w, CPPN_P_WEIGHT), i))
+        }))
+    });
+}
+function cppnValidate(g) {
+    if (!g || !Array.isArray(g.hidden) || !Array.isArray(g.outputs)) return false;
+    if (g.hidden.length !== CPPN_N_HIDDEN || g.outputs.length !== CPPN_N_OUTPUTS) return false;
+    for (let i = 0; i < g.hidden.length; i++) {
+        const n = g.hidden[i];
+        if (!n || !Array.isArray(n.weights) || n.weights.length !== CPPN_N_INPUTS + i) return false;
+        if (!Number.isFinite(n.bias) || !Number.isInteger(n.activation)) return false;
+    }
+    for (const n of g.outputs) {
+        if (!n || !Array.isArray(n.weights) || n.weights.length !== CPPN_N_INPUTS + CPPN_N_HIDDEN) return false;
+        if (!Number.isFinite(n.bias)) return false;
+    }
+    return true;
+}
+function cppnSanitize(g) {
+    return cppnApplyInputMask({
+        hidden: g.hidden.map((n, i) => ({
+            activation: ((n.activation % CPPN_N_OPS) + CPPN_N_OPS) % CPPN_N_OPS,
+            bias: clamp(Number(n.bias) || 0, -CPPN_WEIGHT_LIMIT, CPPN_WEIGHT_LIMIT),
+            weights: n.weights.slice(0, CPPN_N_INPUTS + i).map(w => clamp(Number(w) || 0, -CPPN_WEIGHT_LIMIT, CPPN_WEIGHT_LIMIT))
+        })),
+        outputs: g.outputs.map(n => ({
+            bias: clamp(Number(n.bias) || 0, -CPPN_WEIGHT_LIMIT, CPPN_WEIGHT_LIMIT),
+            weights: n.weights.slice(0, CPPN_N_INPUTS + CPPN_N_HIDDEN).map(w => clamp(Number(w) || 0, -CPPN_WEIGHT_LIMIT, CPPN_WEIGHT_LIMIT))
+        }))
+    });
+}
+function cppnGlslFloat(value) {
+    const s = Math.abs(value) < 0.0001 ? 0 : clamp(value, -CPPN_WEIGHT_LIMIT, CPPN_WEIGHT_LIMIT);
+    let t = s.toFixed(4).replace(/\.0+$/, ".0").replace(/(\.\d*?)0+$/, "$1");
+    if (t === "-0.0" || t === "-0") t = "0.0";
+    if (!t.includes(".")) t += ".0";
+    return t;
+}
+function cppnWeightedExp(weights, bias, res) {
+    const parts = [cppnGlslFloat(bias)];
+    weights.forEach((w, i) => parts.push(`${cppnGlslFloat(w)} * ${res(i)}`));
+    return parts.join(" + ");
+}
+function cppnGenomeToGLSL(g) {
+    let body = "";
+    g.hidden.forEach((n, i) => {
+        const exp = cppnWeightedExp(n.weights, n.bias, wi => (wi < CPPN_N_INPUTS ? `in${wi}` : `h${wi - CPPN_N_INPUTS}`));
+        body += `    float h${i} = cp_${CPPN_OP_NAMES[n.activation]}(${exp});\n`;
+    });
+    g.outputs.forEach((n, i) => {
+        const exp = cppnWeightedExp(n.weights, n.bias, wi => (wi < CPPN_N_INPUTS ? `in${wi}` : `h${wi - CPPN_N_INPUTS}`));
+        body += `    float out${i} = clamp(0.5 + 0.5 * cp_tanh(${exp}), 0.0, 1.0);\n`;
+    });
+    return cppnGlslHeader + body + cppnGlslFooter;
+}
+function cppnEncodeSignedByte(v) {
+    const q = Math.round(clamp(v, -CPPN_WEIGHT_LIMIT, CPPN_WEIGHT_LIMIT) / CPPN_WEIGHT_LIMIT * 127);
+    return q < 0 ? q + 256 : q;
+}
+function cppnDecodeSignedByte(b) {
+    const s = b > 127 ? b - 256 : b;
+    return clamp(s / 127 * CPPN_WEIGHT_LIMIT, -CPPN_WEIGHT_LIMIT, CPPN_WEIGHT_LIMIT);
+}
+function cppnPack(g) {
+    const bytes = [CPPN_PACK_VERSION];
+    g.hidden.forEach(n => { bytes.push(n.activation & 255); bytes.push(cppnEncodeSignedByte(n.bias)); n.weights.forEach(w => bytes.push(cppnEncodeSignedByte(w))); });
+    g.outputs.forEach(n => { bytes.push(cppnEncodeSignedByte(n.bias)); n.weights.forEach(w => bytes.push(cppnEncodeSignedByte(w))); });
+    return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function cppnUnpack(enc) {
+    const b64 = enc.replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(b64 + "=".repeat((4 - b64.length % 4) % 4));
+    const bytes = []; for (let i = 0; i < bin.length; i++) bytes.push(bin.charCodeAt(i));
+    let off = 0; if (bytes[off++] !== CPPN_PACK_VERSION) throw new Error("Incompatible CPPN.");
+    const hidden = [];
+    for (let i = 0; i < CPPN_N_HIDDEN; i++) {
+        const activation = bytes[off++] % CPPN_N_OPS;
+        const bias = cppnDecodeSignedByte(bytes[off++]);
+        const weights = [];
+        for (let wi = 0; wi < CPPN_N_INPUTS + i; wi++) weights.push(cppnDecodeSignedByte(bytes[off++]));
+        hidden.push({ activation, bias, weights });
+    }
+    const outputs = [];
+    for (let i = 0; i < CPPN_N_OUTPUTS; i++) {
+        const bias = cppnDecodeSignedByte(bytes[off++]);
+        const weights = [];
+        for (let wi = 0; wi < CPPN_N_INPUTS + CPPN_N_HIDDEN; wi++) weights.push(cppnDecodeSignedByte(bytes[off++]));
+        outputs.push({ bias, weights });
+    }
+    const g = { hidden, outputs }; if (!cppnValidate(g)) throw new Error("Broken CPPN."); return g;
+}
+
+function getGenomeToGLSL(g) { return currentMode === "cgp" ? cgpGenomeToGLSL(g) : cppnGenomeToGLSL(g); }
+function mutateGenome(g) { return currentMode === "cgp" ? cgpMutate(g) : cppnMutate(g); }
+function cloneGenome(g) { return JSON.parse(JSON.stringify(g)); }
+function initSingleGenome() { return currentMode === "cgp" ? cgpInitGenome() : cppnInitGenome(); }
+
+function deletePrograms() { programs.forEach(p => { if (p) gl.deleteProgram(p); }); programs = []; }
+function buildPrograms() { programs = population.map(g => createProgram(gl, vertexShader, getGenomeToGLSL(g))); }
+
+function replaceGenome(idx, g) {
+    population[idx] = cloneGenome(g);
+    if (programs[idx]) gl.deleteProgram(programs[idx]);
+    programs[idx] = createProgram(gl, vertexShader, getGenomeToGLSL(population[idx]));
+}
+function pushUndo() {
+    undoStack.push({ mode: currentMode, population: population.map(cloneGenome), selectedGenome, activeSavedId });
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+}
+function undo() {
+    if (undoStack.length === 0) return;
+    const snap = undoStack.pop();
+    if (snap.mode !== currentMode) setMode(snap.mode);
+    deletePrograms();
+    population = snap.population.map(cloneGenome);
+    buildPrograms();
+    activeSavedId = snap.activeSavedId;
+    selectGenome(snap.selectedGenome);
+    renderSavedList();
+}
+function initPopulation() {
+    if (population.length > 0) pushUndo();
+    deletePrograms();
+    population = Array.from({ length: POP_SIZE }, initSingleGenome);
+    buildPrograms();
+    activeSavedId = null;
+    selectGenome(0);
+    renderSavedList();
+}
+function selectGenome(idx) {
+    selectedGenome = idx;
+    document.querySelectorAll(".grid-cell").forEach((c, i) => c.classList.toggle("selected", i === idx));
+    if (population[idx]) {
+        let h = currentMode === "cgp" ? "#g=" + cgpPack(population[idx]) : "#cppn=" + cppnPack(population[idx]);
+        history.replaceState(null, "", h);
+    }
+}
+function evolveFrom(idx) {
+    pushUndo();
+    const base = cloneGenome(population[idx]);
+    for (let c = 0; c < POP_SIZE; c++) {
+        if (c === idx) continue;
+        replaceGenome(c, mutateGenome(base));
+    }
+    activeSavedId = null;
+    selectGenome(idx);
+    renderSavedList();
+}
+
+function getStorageKey() { return currentMode === "cgp" ? "cgp_saved_shaders" : "cppn_saved_networks_v1"; }
+function loadSaved() {
+    try {
+        let parsed = JSON.parse(localStorage.getItem(getStorageKey()) || "[]");
+        if (currentMode === "cppn") return parsed.filter(e => e && e.id && e.name && cppnValidate(e.genome));
+        return parsed;
+    } catch (e) { return []; }
+}
+function persistSaved(list) { localStorage.setItem(getStorageKey(), JSON.stringify(list)); }
+
+function renderSavedList() {
+    const list = loadSaved();
+    const container = document.getElementById("saved-list");
+    if (list.length === 0) {
+        container.innerHTML = '<div id="saved-empty">No saved shaders yet.</div>';
+        return;
+    }
+    container.innerHTML = "";
+    for (const entry of list) {
+        const item = document.createElement("div");
+        item.className = "saved-shader-item";
+        item.classList.toggle("active-saved", entry.id === activeSavedId);
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "shader-name"; nameSpan.title = entry.name; nameSpan.textContent = entry.name;
+        item.appendChild(nameSpan);
+        const delBtn = document.createElement("button");
+        delBtn.className = "delete-btn"; delBtn.textContent = "\u00d7";
+        delBtn.addEventListener("click", e => { e.stopPropagation(); deleteSaved(entry.id); });
+        item.appendChild(delBtn);
+        item.addEventListener("click", () => loadSavedItem(entry.id));
+        container.appendChild(item);
+    }
+}
+function saveCurrent() {
+    const name = prompt("Name for this shader:", (currentMode === "cgp"?"CGP":"CPPN")+" " + new Date().toLocaleTimeString());
+    if (!name) return;
+    const list = loadSaved();
+    const id = Date.now().toString(36);
+    list.push({ id, name: name.trim(), genome: cloneGenome(population[selectedGenome]) });
+    persistSaved(list);
+    activeSavedId = id;
+    renderSavedList();
+}
+function deleteSaved(id) {
+    persistSaved(loadSaved().filter(e => e.id !== id));
+    if (activeSavedId === id) activeSavedId = null;
+    renderSavedList();
+}
+function loadSavedItem(id) {
+    const entry = loadSaved().find(e => e.id === id);
+    if (!entry) return;
+    pushUndo();
+    const base = currentMode === "cppn" ? cppnSanitize(entry.genome) : cloneGenome(entry.genome);
+    replaceGenome(selectedGenome, base);
+    for (let i = 0; i < POP_SIZE; i++) {
+        if (i === selectedGenome) continue;
+        replaceGenome(i, mutateGenome(base));
+    }
+    activeSavedId = id;
+    selectGenome(selectedGenome);
+    renderSavedList();
+}
+
+function buildCurrentOpsList() {
+    const container = document.getElementById("ops-list");
+    container.innerHTML = "";
+    const names = currentMode === "cgp" ? CGP_OP_NAMES : CPPN_OP_NAMES;
+    const formulas = currentMode === "cgp" ? CGP_OP_FORMULAS : CPPN_OP_FORMULAS;
+    const enabled = currentMode === "cgp" ? cgpEnabledOps : cppnEnabledOps;
+    
+    names.forEach((name, idx) => {
+        const row = document.createElement("div");
+        row.className = "op-option";
+        row.classList.toggle("disabled-op", !enabled[idx]);
+        if (formulas[idx]) row.title = formulas[idx];
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox"; cb.checked = enabled[idx]; cb.id = `op-${idx}`;
+        cb.addEventListener("change", () => {
+            enabled[idx] = cb.checked;
+            row.classList.toggle("disabled-op", !cb.checked);
+        });
+        const label = document.createElement("label");
+        label.htmlFor = cb.id; label.textContent = name;
+        row.appendChild(cb); row.appendChild(label);
+        container.appendChild(row);
+    });
+}
+function buildCppnInputList() {
+    const container = document.getElementById("input-list");
+    container.innerHTML = "";
+    CPPN_INPUT_NAMES.forEach((name, idx) => {
+        const row = document.createElement("div");
+        row.className = "op-option";
+        row.classList.toggle("disabled-op", !cppnEnabledInputs[idx]);
+        row.title = CPPN_INPUT_FORMULAS[idx];
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox"; cb.checked = cppnEnabledInputs[idx]; cb.id = `input-${idx}`;
+        cb.addEventListener("change", () => {
+            cppnEnabledInputs[idx] = cb.checked;
+            row.classList.toggle("disabled-op", !cb.checked);
+            population = population.map(g => cppnApplyInputMask(g));
+            deletePrograms(); buildPrograms(); selectGenome(selectedGenome);
+        });
+        const label = document.createElement("label");
+        label.htmlFor = cb.id; label.textContent = name;
+        row.appendChild(cb); row.appendChild(label);
+        container.appendChild(row);
+    });
+}
+
+function shareGenome() {
+    let enc = currentMode === "cgp" ? cgpPack(population[selectedGenome]) : cppnPack(population[selectedGenome]);
+    let url = location.origin + location.pathname + (currentMode === "cgp" ? "#g=" : "#cppn=") + enc;
+    history.replaceState(null, "", currentMode === "cgp" ? "#g=" + enc : "#cppn=" + enc);
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => {
+            const btn = document.getElementById("share-btn");
+            const old = btn.innerHTML; btn.innerHTML = "&#10003; Copied!";
+            setTimeout(() => btn.innerHTML = old, 2000);
+        }).catch(() => prompt("URL:", url));
+    } else {
+        prompt("URL:", url);
+    }
+}
+function checkURL() {
+    const hash = location.hash;
+    const matchCgp = hash.match(/[#&]g=([A-Za-z0-9_-]+)/);
+    const matchCppn = hash.match(/[#&]cppn=([A-Za-z0-9_-]+)/);
+    
+    if (matchCgp) {
+        setMode("cgp");
+        try {
+            const base = cgpUnpack(matchCgp[1]);
+            replaceGenome(selectedGenome, base);
+            for (let i = 0; i < POP_SIZE; i++) {
+                if (i !== selectedGenome) replaceGenome(i, mutateGenome(base));
+            }
+            activeSavedId = null; selectGenome(selectedGenome); renderSavedList();
+        } catch(e) {}
+    } else if (matchCppn) {
+        setMode("cppn");
+        try {
+            const base = cppnSanitize(cppnUnpack(matchCppn[1]));
+            replaceGenome(selectedGenome, base);
+            for (let i = 0; i < POP_SIZE; i++) {
+                if (i !== selectedGenome) replaceGenome(i, mutateGenome(base));
+            }
+            activeSavedId = null; selectGenome(selectedGenome); renderSavedList();
+        } catch(e) {}
+    } else {
+        initPopulation();
+    }
+}
+
+function setMode(mode) {
+    currentMode = mode;
+    document.getElementById("engine-select").value = mode;
+    document.getElementById("ops-panel-title").textContent = mode === "cgp" ? "Operations" : "Activations";
+    const infoText = mode === "cgp" 
+      ? "Cartesian Genetic Programming to explore evolved shaders. Click on an image to derive new mutations. [ENTER] reinitializes, [Ctrl+Z] undoes the last step."
+      : "Compositional Pattern-Producing Networks to explore evolved shaders. A CPPN maps coordinates, radius, angle, and time to RGB values per pixel. Click on an image to derive new mutations. [ENTER] reinitializes, [Ctrl+Z] undoes.";
+    document.getElementById("info-text").textContent = infoText;
+    
+    if (mode === "cppn") {
+        document.getElementById("inputs-sidebar").classList.remove("hidden-panel");
+        buildCppnInputList();
+    } else {
+        document.getElementById("inputs-sidebar").classList.add("hidden-panel");
+    }
+    
+    buildCurrentOpsList();
+    renderSavedList();
+}
+
+document.getElementById("engine-select").addEventListener("change", e => {
+    setMode(e.target.value);
+    undoStack = [];
+    initPopulation();
+});
+document.getElementById("ops-all").addEventListener("click", () => {
+    if (currentMode === "cgp") cgpEnabledOps.fill(true); else cppnEnabledOps.fill(true);
+    buildCurrentOpsList();
+});
+document.getElementById("ops-none").addEventListener("click", () => {
+    if (currentMode === "cgp") cgpEnabledOps.fill(false); else cppnEnabledOps.fill(false);
+    buildCurrentOpsList();
+});
+document.getElementById("inputs-all").addEventListener("click", () => {
+    cppnEnabledInputs.fill(true); buildCppnInputList();
+    population = population.map(g => cppnApplyInputMask(g));
+    deletePrograms(); buildPrograms(); selectGenome(selectedGenome);
+});
+document.getElementById("inputs-none").addEventListener("click", () => {
+    cppnEnabledInputs.fill(false); buildCppnInputList();
+    population = population.map(g => cppnApplyInputMask(g));
+    deletePrograms(); buildPrograms(); selectGenome(selectedGenome);
+});
+
+canvas.addEventListener("mousedown", e => {
+    let rect = canvas.getBoundingClientRect();
+    let index = Math.floor((e.clientY - rect.top) / (rect.height / GRID_DIM)) * GRID_DIM + Math.floor((e.clientX - rect.left) / (rect.width / GRID_DIM));
+    if (index >= 0 && index < POP_SIZE) evolveFrom(index);
+});
+document.addEventListener("keydown", e => {
+    if (e.key === "Enter") initPopulation();
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); }
+});
+document.getElementById("restart-btn").addEventListener("click", initPopulation);
+document.getElementById("save-btn").addEventListener("click", saveCurrent);
+document.getElementById("share-btn").addEventListener("click", shareGenome);
+
+const exportButton = document.getElementById("export-btn");
+const exportWidthInput = document.getElementById("export-width");
+const exportHeightInput = document.getElementById("export-height");
+const exportDurationInput = document.getElementById("export-duration");
+const exportStatus = document.getElementById("export-status");
+let exportResources = null;
+let exportInFlight = false;
+
+function ensureExportResources(width, height) {
+    if (exportResources && exportResources.width === width && exportResources.height === height) return exportResources;
+    if (exportResources) {
+        exportResources.gl.deleteBuffer(exportResources.positionBuffer);
+        exportResources.gl.deleteShader(exportResources.vertexShader);
+    }
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = width; exportCanvas.height = height;
+    const exportGl = exportCanvas.getContext("webgl", { preserveDrawingBuffer: true });
+    exportResources = {
+        canvas: exportCanvas, gl: exportGl, width, height,
+        positionBuffer: createPositionBuffer(exportGl),
+        vertexShader: createShader(exportGl, exportGl.VERTEX_SHADER, vertexShaderSource)
+    };
+    return exportResources;
+}
+
+function drawProgramsExport(context, program, seconds, x, y, width, height) {
+    context.viewport(x, y, width, height);
+    context.useProgram(program);
+    let timeLoc = context.getUniformLocation(program, "u_time");
+    if (timeLoc) {
+        let tParam = currentMode === "cgp" ? (Math.sin(2 * Math.PI * ((seconds * 0.2) % 1.0)) + 1) / 2 : seconds;
+        context.uniform1f(timeLoc, tParam);
+    }
+    let aspectLoc = context.getUniformLocation(program, "u_aspect");
+    if (aspectLoc) context.uniform1f(aspectLoc, width / height);
+    context.drawArrays(context.TRIANGLE_STRIP, 0, 4);
+}
+
+document.getElementById("export-btn").addEventListener("click", async () => {
+    if (exportInFlight) return;
+    if (!globalThis.MediaRecorder) return alert("Browser does not support MediaRecorder.");
+    const width = parseInt(exportWidthInput.value, 10);
+    const height = parseInt(exportHeightInput.value, 10);
+    const duration = parseFloat(exportDurationInput.value);
+    const fps = 60;
+    const format = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
+    
+    try {
+        let res = ensureExportResources(width, height);
+        let prog = createProgram(res.gl, res.vertexShader, getGenomeToGLSL(population[selectedGenome]));
+        bindPositionBuffer(res.gl, res.positionBuffer);
+        let stream = res.canvas.captureStream(fps);
+        let recorder = new MediaRecorder(stream, { videoBitsPerSecond: 16000000, mimeType: format });
+        
+        const chunks = [];
+        recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+        const finished = new Promise((resolve, reject) => { recorder.onstop = () => resolve(chunks); recorder.onerror = reject; });
+        
+        recorder.start(250);
+        exportInFlight = true;
+        exportButton.disabled = true;
+        const total = Math.ceil(duration * fps);
+        
+        for (let i = 0; i < total; i++) {
+            res.gl.clearColor(0,0,0,1); res.gl.clear(res.gl.COLOR_BUFFER_BIT);
+            bindPositionBuffer(res.gl, res.positionBuffer);
+            drawProgramsExport(res.gl, prog, i / fps, 0, 0, width, height);
+            const [track] = stream.getVideoTracks();
+            if (track && track.requestFrame) track.requestFrame();
+            exportStatus.textContent = `Rendering ${Math.round(i/total*100)}%`;
+            if (i < total - 1) await new Promise(r => setTimeout(r, 1000/fps));
+        }
+        recorder.stop();
+        const blobs = await finished;
+        const blob = new Blob(blobs, { type: format });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `${currentMode}-${width}x${height}.webm`;
+        a.click(); URL.revokeObjectURL(url);
+        res.gl.deleteProgram(prog);
+        stream.getTracks().forEach(t => t.stop());
+    } catch(e) {
+        alert("Export failed: " + e);
+    } finally {
+        exportInFlight = false;
+        exportButton.disabled = false;
+        exportStatus.textContent = "";
+    }
+});
+
+let lastTime = performance.now(), frames = 0;
+function render(now) {
+    frames++;
+    if (now - lastTime >= 1000) { document.getElementById("fps").innerText = `FPS: ${frames}`; frames = 0; lastTime = now; }
+
+    let sec = now / 1000.0;
+    let tParam = currentMode === "cgp" ? (Math.sin(2 * Math.PI * ((sec * 0.2) % 1.0)) + 1) / 2 : sec;
+
+    let cw = canvas.width / GRID_DIM, ch = canvas.height / GRID_DIM;
+    gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT);
+    bindPositionBuffer(gl, positionBuffer);
+
+    for (let i = 0; i < POP_SIZE; i++) {
+        let p = programs[i]; if (!p) continue;
+        let col = i % GRID_DIM, row = Math.floor(i / GRID_DIM);
+        let glRow = (GRID_DIM - 1) - row;
+        gl.viewport(col * cw, glRow * ch, cw, ch);
+        gl.useProgram(p);
+        let timeLoc = gl.getUniformLocation(p, "u_time");
+        if (timeLoc) gl.uniform1f(timeLoc, tParam);
+        let aspectLoc = gl.getUniformLocation(p, "u_aspect");
+        if (aspectLoc) gl.uniform1f(aspectLoc, 1.0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    requestAnimationFrame(render);
+}
+
+setMode("cgp");
+checkURL();
+requestAnimationFrame(render);
+</script>
+</body>
+</html>

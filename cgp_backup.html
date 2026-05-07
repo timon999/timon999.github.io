@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CGP GPU Animator</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background-color: #e5e5e5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .app-layout {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .paper-card {
+            background: #fff;
+            padding: 1rem;
+            border: 4px solid #000;
+            box-shadow: 8px 8px 0px #000;
+            margin-bottom: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .panel-header {
+            font-size: 1.2rem;
+            font-weight: 900;
+            border-bottom: 3px dashed #000;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+        
+        .info-window { width: 100%; }
+        .sidebar-window { width: 260px; flex-shrink: 0; }
+        .ops-window { width: 240px; flex-shrink: 0; }
+        .canvas-window { 
+            flex: 1;
+            min-width: 300px;
+            max-width: 836px;
+        }
+
+        button {
+            background-color: #00ffff;
+            border: 2px solid #000;
+            font-weight: bold;
+            padding: 0.4rem 0.8rem;
+            cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            box-shadow: 4px 4px 0px #000;
+            margin-top: 5px;
+            color: #000;
+        }
+        button:hover { background-color: #ff00ff; color: #fff; transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
+        button:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px #000; }
+        
+        .action-btn { width: 100%; margin-bottom: 0.5rem; }
+
+        .saved-shader-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            margin-bottom: 4px;
+        }
+        .saved-shader-item:hover { background: #ffff00; border-color: #000; }
+        .saved-shader-item.active-saved { background: #000; color: #fff; }
+        .saved-shader-item .shader-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-weight: bold; }
+        .saved-shader-item .delete-btn {
+            background: none; border: none; color: inherit; cursor: pointer; box-shadow: none; font-size: 16px; padding: 0 4px; margin-left: 5px; margin-top: 0;
+        }
+        .saved-shader-item .delete-btn:hover { color: #ff0000; transform: none; background: none; border: none; box-shadow: none;}
+        
+        .op-group { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; padding-right: 10px;}
+        .op-option { display: flex; align-items: center; padding: 2px 4px; }
+        .op-option:hover { background: #ffff00; }
+        .op-option input[type=checkbox] { cursor: pointer; accent-color: #000; width: 16px; height: 16px; margin: 0;}
+        .op-option label { font-size: 12px; font-family: monospace; margin-left: 8px; user-select: none; font-weight: bold;}
+        
+        .ops-btn-row { display: flex; gap: 10px; margin-top: 1rem; }
+        .ops-btn-row button { flex: 1; padding: 0.2rem; }
+
+        .container { position: relative; width: 100%; aspect-ratio: 1; }
+        canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; border: 4px solid #000; box-sizing: border-box;}
+        .grid-overlay { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); pointer-events: none; }
+        .grid-cell { box-sizing: border-box; border: 2px solid rgba(0, 0, 0, 0.2); }
+        .grid-cell.selected { border: 4px solid #fff; box-shadow: inset 0 0 0 4px #000; mix-blend-mode: difference;}
+        
+        #saved-empty { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #666; text-align: center; }
+        
+        @media (max-width: 860px) {
+            .app-layout { flex-direction: column; align-items: stretch; }
+            .sidebar-window, .ops-window, .canvas-window { width: 100%; max-width: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="paper-card info-window">
+        <div class="panel-header">
+            <span>CGP GPU Animator</span>
+        </div>
+        <div class="window-body">
+            <p class="info-copy">Cartesian Genetic Programming to explore evolved shaders. Click on an image to derive new mutations. [ENTER] reinitializes, [Ctrl+Z] undoes the last step.</p>
+            <span id="fps">FPS: ...</span>
+        </div>
+    </div>
+
+    <div class="app-layout">
+    <div class="paper-card sidebar-window">
+        <div class="panel-header">
+            <span>Saved Shaders</span>
+        </div>
+        <div class="window-body">
+            <div class="saved-panel" id="saved-list"><div id="saved-empty">No saved shaders yet.</div></div>
+            <div class="sidebar-actions">
+                <button class="action-btn" id="save-btn">Save Current</button>
+                <button class="action-btn" id="share-btn">Share URL</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="paper-card canvas-window">
+        <div class="panel-header">
+            <span>Population</span>
+        </div>
+        <div class="window-body canvas-panel">
+            <div class="container">
+                <canvas id="glcanvas" width="800" height="800"></canvas>
+                <div class="grid-overlay" id="overlay">
+                    <div class="grid-cell selected" id="cell-0"></div><div class="grid-cell" id="cell-1"></div><div class="grid-cell" id="cell-2"></div>
+                    <div class="grid-cell" id="cell-3"></div><div class="grid-cell" id="cell-4"></div><div class="grid-cell" id="cell-5"></div>
+                    <div class="grid-cell" id="cell-6"></div><div class="grid-cell" id="cell-7"></div><div class="grid-cell" id="cell-8"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="paper-card ops-window" id="ops-sidebar">
+        <div class="panel-header">
+            <span>Operations</span>
+        </div>
+        <div class="window-body">
+            <div class="ops-panel op-group" id="ops-list"></div>
+            <div class="ops-btn-row">
+                <button id="ops-all">All</button>
+                <button id="ops-none">None</button>
+            </div>
+        </div>
+    </div>
+    </div><!-- end app-layout -->
+
+<script>
+// --- CGP Parameter ---
+const P_NODE = 0.1, P_OUT = 0.2;
+const N_INPUTS = 3, N_OUTPUTS = 3;
+const POP_SIZE = 9, GRID_DIM = 3;
+const N_NODES = 15;
+const OP_NAMES = [
+    "fmaxf", "fminf", "sin01", "cos01", "add01", "hadd01", "or01", "xor01", 
+    "tnorm01", "tconorm01", "sig01", "mult01", "lerp01", "dist01", "einstein01", "perlin01"
+];
+const OP_FORMULAS = [
+    "max(x, y)",
+    "min(x, y)",
+    "(sin(2π(x+y)) + 1) / 2",
+    "(cos(2π(x+y)) + 1) / 2",
+    "min(x + y, 1)",
+    "(x + y) / 2",
+    "x + y − x·y",
+    "x + y − 2·x·y",
+    "max(0, x + y − 1)",
+    "min(1, x + y)",
+    "1 / (1 + e^(−x−y))",
+    "x · y",
+    "x·(1−y) + y",
+    "min(1, √((x−½)²+(y−½)²) / √½)",
+    "(x·y) / (2 − x − y + x·y)",
+    null
+];
+const N_OPS = OP_NAMES.length;
+
+// --- Enabled Ops ---
+let enabledOps = new Array(N_OPS).fill(true);
+
+function randEnabledOp() {
+    const active = enabledOps.reduce((acc, on, i) => { if (on) acc.push(i); return acc; }, []);
+    if (active.length === 0) return Math.floor(Math.random() * N_OPS);
+    return active[Math.floor(Math.random() * active.length)];
+}
+
+// --- Helfer ---
+const rand01 = () => Math.random();
+const randInt = (max) => Math.floor(Math.random() * max);
+
+function generateNodeInputSourceIndex(currentNodeId) {
+    let maxOptions = N_INPUTS + currentNodeId;
+    if (maxOptions <= 0) return -N_INPUTS;
+    return randInt(maxOptions) - N_INPUTS;
+}
+
+// --- CGP Logik ---
+function initGenome() {
+    let nodes = [];
+    for (let i = 0; i < N_NODES; i++) {
+        nodes.push({
+            func: randEnabledOp(),
+            in1: generateNodeInputSourceIndex(i),
+            in2: generateNodeInputSourceIndex(i)
+        });
+    }
+    let outputs = Array.from({length: N_OUTPUTS}, () => randInt(N_NODES));
+    return { nodes, outputs };
+}
+
+function mutate(g) {
+    let newG = { nodes: [], outputs: [] };
+    for (let i = 0; i < N_OUTPUTS; i++) {
+        newG.outputs[i] = (rand01() < P_OUT) ? randInt(N_NODES) : g.outputs[i];
+    }
+    for (let i = 0; i < N_NODES; i++) {
+        newG.nodes[i] = {
+            func: (rand01() < P_NODE) ? randEnabledOp() : g.nodes[i].func,
+            in1: (rand01() < P_NODE) ? generateNodeInputSourceIndex(i) : g.nodes[i].in1,
+            in2: (rand01() < P_NODE) ? generateNodeInputSourceIndex(i) : g.nodes[i].in2
+        };
+    }
+    return newG;
+}
+
+function getActiveNodes(g) {
+    let active = new Array(N_NODES).fill(false);
+    function mark(idx) {
+        if (idx < 0 || idx >= N_NODES || active[idx]) return;
+        active[idx] = true;
+        mark(g.nodes[idx].in1);
+        mark(g.nodes[idx].in2);
+    }
+    g.outputs.forEach(idx => mark(idx));
+    return active;
+}
+
+// --- GLSL Generierung ---
+const glslHeader = `
+precision highp float;
+varying vec2 v_uv;
+uniform float u_time;
+
+#define PI 3.14159265359
+
+float op_fmaxf(float x, float y) { return max(x, y); }
+float op_fminf(float x, float y) { return min(x, y); }
+float op_sin01(float x, float y) { return (sin(2.0 * PI * (x + y)) + 1.0) / 2.0; }
+float op_cos01(float x, float y) { return (cos(2.0 * PI * (x + y)) + 1.0) / 2.0; }
+float op_add01(float x, float y) { return min(x + y, 1.0); }
+float op_hadd01(float x, float y) { return (x + y) / 2.0; }
+float op_or01(float x, float y) { return x + y - x * y; }
+float op_xor01(float x, float y) { return x + y - 2.0 * x * y; }
+float op_tnorm01(float x, float y) { return max(0.0, x + y - 1.0); }
+float op_tconorm01(float x, float y) { return min(1.0, x + y); }
+float op_sig01(float x, float y) { return 1.0 / (1.0 + exp(-x - y)); }
+float op_mult01(float x, float y) { return x * y; }
+float op_lerp01(float x, float y) { return x * (1.0 - y) + y; }
+float op_dist01(float x, float y) { return min(1.0, sqrt((x - 0.5)*(x - 0.5) + (y - 0.5)*(y - 0.5)) / 0.707106); }
+float op_einstein01(float x, float y) { return (x * y) / (2.0 - x - y + x * y + 0.000001); }
+vec2 _hash2(vec2 p) {
+    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+    return -1.0 + 2.0 * fract(sin(p) * 43758.5453);
+}
+float op_perlin01(float x, float y) {
+    vec2 p = vec2(x, y) * 4.0;
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    float v = mix(
+        mix(dot(_hash2(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0)),
+            dot(_hash2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
+        mix(dot(_hash2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)),
+            dot(_hash2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x), u.y);
+    return clamp(v * 0.5 + 0.5, 0.0, 1.0);
+}
+
+void main() {
+    float in0 = v_uv.x;
+    float in1 = v_uv.y;
+    float in2 = u_time;
+`;
+
+const glslFooter = `
+    gl_FragColor = vec4(out0, out1, out2, 1.0);
+}
+`;
+
+function genomeToGLSL(g) {
+    let active = getActiveNodes(g);
+    let body = "";
+    
+    for (let i = 0; i < N_NODES; i++) {
+        if (!active[i]) continue;
+        let n = g.nodes[i];
+        let arg1 = n.in1 < 0 ? `in${n.in1 + N_INPUTS}` : `x${n.in1}`;
+        let arg2 = n.in2 < 0 ? `in${n.in2 + N_INPUTS}` : `x${n.in2}`;
+        body += `    float x${i} = op_${OP_NAMES[n.func]}(${arg1}, ${arg2});\n`;
+    }
+
+    for (let i = 0; i < N_OUTPUTS; i++) {
+        let outIdx = g.outputs[i];
+        if (outIdx >= 0 && active[outIdx]) {
+            body += `    float out${i} = x${outIdx};\n`;
+        } else {
+            body += `    float out${i} = 0.0;\n`;
+        }
+    }
+    return glslHeader + body + glslFooter;
+}
+
+// --- WebGL Setup ---
+const canvas = document.getElementById('glcanvas');
+const gl = canvas.getContext('webgl');
+
+const vertexShaderSource = `
+attribute vec2 a_position;
+varying vec2 v_uv;
+void main() {
+    v_uv = a_position * 0.5 + 0.5;
+    gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+
+function createShader(type, source) {
+    let shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+    }
+    return shader;
+}
+
+const vertexShader = createShader(gl.VERTEX_SHADER, vertexShaderSource);
+
+function createProgram(fragmentSource) {
+    let fragmentShader = createShader(gl.FRAGMENT_SHADER, fragmentSource);
+    let program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    gl.deleteShader(fragmentShader); // Bereinigung
+    return program;
+}
+
+// Fullscreen Quad Geometry
+const positionBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,  1,-1,  -1,1,  1,1]), gl.STATIC_DRAW);
+
+let population = [];
+let programs = [];
+let selectedGenome = 0;
+
+// --- Undo Stack ---
+let undoStack = [];
+const MAX_UNDO = 30;
+
+function pushUndo() {
+    undoStack.push({
+        population: population.map(g => JSON.parse(JSON.stringify(g))),
+        selectedGenome
+    });
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+    const state = undoStack.pop();
+    for (let p of programs) if (p) gl.deleteProgram(p);
+    population = state.population;
+    programs = population.map(g => createProgram(genomeToGLSL(g)));
+    selectGenome(state.selectedGenome);
+}
+
+function initPopulation() {
+    if (population.length > 0) pushUndo();
+    for (let p of programs) if (p) gl.deleteProgram(p);
+    population = Array.from({length: POP_SIZE}, () => initGenome());
+    programs = population.map(g => createProgram(genomeToGLSL(g)));
+    selectGenome(0);
+}
+
+function selectGenome(index) {
+    selectedGenome = index;
+    document.querySelectorAll('.grid-cell').forEach((el, i) => {
+        el.classList.toggle('selected', i === index);
+    });
+    if (population[index]) {
+        history.replaceState(null, '', '#g=' + packGenome(population[index]));
+    }
+}
+
+// Init
+const _initialHash = location.hash;
+initPopulation();
+checkAndLoadFromURL(_initialHash);
+
+// --- Event Listeners ---
+canvas.addEventListener('mousedown', (e) => {
+    let rect = canvas.getBoundingClientRect();
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+    
+    let col = Math.floor(x / (canvas.width / GRID_DIM));
+    let row = Math.floor(y / (canvas.height / GRID_DIM));
+    let index = row * GRID_DIM + col;
+    
+    if (index >= 0 && index < POP_SIZE) {
+        pushUndo();
+        selectGenome(index);
+        let selected = population[index];
+        
+        // Mutate andere
+        for (let i = 0; i < POP_SIZE; i++) {
+            if (i !== index) {
+                population[i] = mutate(selected);
+                gl.deleteProgram(programs[i]);
+                programs[i] = createProgram(genomeToGLSL(population[i]));
+            }
+        }
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === "Enter") initPopulation();
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
+});
+
+// --- Render Loop ---
+let lastTime = performance.now();
+let frames = 0;
+const fpsElement = document.getElementById('fps');
+
+function render(now) {
+    // FPS counter
+    frames++;
+    if (now - lastTime >= 1000) {
+        fpsElement.innerText = `FPS: ${frames}`;
+        frames = 0;
+        lastTime = now;
+    }
+
+    // Time Input berechnen (analog zu sin01(fmod(sec * 0.2, 1.0)))
+    let sec = now / 1000.0;
+    let t = (Math.sin(2 * Math.PI * ((sec * 0.2) % 1.0)) + 1) / 2;
+
+    let cw = canvas.width / GRID_DIM;
+    let ch = canvas.height / GRID_DIM;
+
+    gl.enableVertexAttribArray(0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+    // Render 9 Viewports
+    for (let i = 0; i < POP_SIZE; i++) {
+        let program = programs[i];
+        if (!program) continue;
+
+        let col = i % GRID_DIM;
+        let row = Math.floor(i / GRID_DIM);
+        
+        // WebGL erwartet Y von unten nach oben für viewports!
+        let glRow = (GRID_DIM - 1) - row;
+
+        gl.viewport(col * cw, glRow * ch, cw, ch);
+        gl.useProgram(program);
+        
+        let timeLoc = gl.getUniformLocation(program, "u_time");
+        gl.uniform1f(timeLoc, t);
+        
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+
+    requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+// --- Shader Speicherung ---
+const STORAGE_KEY = 'cgp_saved_shaders';
+let activeSavedId = null;
+
+function loadSavedShaders() {
+    try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch(e) { return []; }
+}
+
+function persistSavedShaders(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+function renderSavedList() {
+    const list = loadSavedShaders();
+    const container = document.getElementById('saved-list');
+    if (list.length === 0) {
+        container.innerHTML = '<div id="saved-empty">No shaders saved.</div>';
+        return;
+    }
+    container.innerHTML = '';
+    for (const entry of list) {
+        const item = document.createElement('div');
+        item.className = 'saved-shader-item';
+        item.classList.toggle('active-saved', entry.id === activeSavedId);
+        item.dataset.id = entry.id;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'shader-name';
+        nameSpan.title = entry.name;
+        nameSpan.textContent = entry.name;
+        item.appendChild(nameSpan);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'delete-btn';
+        delBtn.title = 'Delete';
+        delBtn.textContent = '\u00d7';
+        delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteSavedShader(entry.id);
+        });
+        item.appendChild(delBtn);
+
+        item.addEventListener('click', () => loadSavedShader(entry.id));
+        container.appendChild(item);
+    }
+}
+
+function saveCurrentShader() {
+    const name = prompt('Name for this shader:', 'Shader ' + new Date().toLocaleTimeString());
+    if (name === null) return;
+    const trimmed = name.trim() || ('Shader ' + new Date().toLocaleTimeString());
+    const list = loadSavedShaders();
+    const id = Date.now().toString();
+    list.push({ id, name: trimmed, genome: population[selectedGenome] });
+    persistSavedShaders(list);
+    activeSavedId = id;
+    renderSavedList();
+}
+
+function deleteSavedShader(id) {
+    let list = loadSavedShaders().filter(e => e.id !== id);
+    persistSavedShaders(list);
+    if (activeSavedId === id) activeSavedId = null;
+    renderSavedList();
+}
+
+function loadSavedShader(id) {
+    const list = loadSavedShaders();
+    const entry = list.find(e => e.id === id);
+    if (!entry) return;
+    pushUndo();
+    activeSavedId = id;
+
+    // Setze gespeichertes Genom als Basis und mutiere den Rest
+    const base = entry.genome;
+    for (let i = 0; i < POP_SIZE; i++) {
+        if (i !== selectedGenome) {
+            population[i] = mutate(base);
+            gl.deleteProgram(programs[i]);
+            programs[i] = createProgram(genomeToGLSL(population[i]));
+        }
+    }
+    population[selectedGenome] = JSON.parse(JSON.stringify(base));
+    gl.deleteProgram(programs[selectedGenome]);
+    programs[selectedGenome] = createProgram(genomeToGLSL(population[selectedGenome]));
+
+    selectGenome(selectedGenome);
+    renderSavedList();
+}
+
+document.getElementById('save-btn').addEventListener('click', saveCurrentShader);
+document.getElementById('share-btn').addEventListener('click', shareGenome);
+renderSavedList();
+
+// --- URL Sharing ---
+function packGenome(g) {
+    const bits = [];
+    const push = (val, n) => { for (let i = n - 1; i >= 0; i--) bits.push((val >> i) & 1); };
+    for (const node of g.nodes) {
+        push(node.func, 4);
+        push(node.in1 + N_INPUTS, 5);
+        push(node.in2 + N_INPUTS, 5);
+    }
+    for (const out of g.outputs) push(out, 4);
+    while (bits.length % 8 !== 0) bits.push(0);
+    const bytes = [];
+    for (let i = 0; i < bits.length; i += 8) {
+        let b = 0;
+        for (let j = 0; j < 8; j++) b = (b << 1) | bits[i + j];
+        bytes.push(b);
+    }
+    return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function unpackGenome(b64) {
+    const s = b64.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(s + '='.repeat((4 - s.length % 4) % 4));
+    const bits = [];
+    for (let i = 0; i < binary.length; i++) {
+        const b = binary.charCodeAt(i);
+        for (let j = 7; j >= 0; j--) bits.push((b >> j) & 1);
+    }
+    let pos = 0;
+    const read = (n) => { let v = 0; for (let i = 0; i < n; i++) v = (v << 1) | (bits[pos++] || 0); return v; };
+    const nodes = [];
+    for (let i = 0; i < N_NODES; i++) {
+        const func = read(4);
+        const in1 = read(5) - N_INPUTS;
+        const in2 = read(5) - N_INPUTS;
+        nodes.push({ func, in1, in2 });
+    }
+    const outputs = [];
+    for (let i = 0; i < N_OUTPUTS; i++) outputs.push(read(4));
+    return { nodes, outputs };
+}
+
+function shareGenome() {
+    const encoded = packGenome(population[selectedGenome]);
+    const url = location.origin + location.pathname + '#g=' + encoded;
+    history.replaceState(null, '', '#g=' + encoded);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+            const btn = document.getElementById('share-btn');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '&#10003; Copied!';
+            setTimeout(() => btn.innerHTML = orig, 2000);
+        }).catch(() => prompt('URL to share:', url));
+    } else {
+        prompt('URL to share:', url);
+    }
+}
+
+function checkAndLoadFromURL(hash) {
+    const match = (hash !== undefined ? hash : location.hash).match(/[#&]g=([A-Za-z0-9_-]+)/);
+    if (!match) return;
+    try {
+        const base = unpackGenome(match[1]);
+        if (!base.nodes || base.nodes.length !== N_NODES || !base.outputs || base.outputs.length !== N_OUTPUTS) return;
+        population[selectedGenome] = base;
+        gl.deleteProgram(programs[selectedGenome]);
+        programs[selectedGenome] = createProgram(genomeToGLSL(base));
+        for (let i = 0; i < POP_SIZE; i++) {
+            if (i !== selectedGenome) {
+                population[i] = mutate(base);
+                gl.deleteProgram(programs[i]);
+                programs[i] = createProgram(genomeToGLSL(population[i]));
+            }
+        }
+    } catch (e) {
+        console.warn('Invalid genome in URL:', e);
+    }
+}
+
+// --- Op Toggles ---
+function buildOpsList() {
+    const container = document.getElementById('ops-list');
+    container.innerHTML = '';
+    OP_NAMES.forEach((name, i) => {
+        const row = document.createElement('div');
+        row.className = 'op-option';
+        row.classList.toggle('disabled-op', !enabledOps[i]);
+        if (OP_FORMULAS[i]) row.title = OP_FORMULAS[i];
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = enabledOps[i];
+        cb.id = `op-${i}`;
+        cb.addEventListener('change', () => {
+            enabledOps[i] = cb.checked;
+            row.classList.toggle('disabled-op', !cb.checked);
+        });
+
+        const label = document.createElement('label');
+        label.htmlFor = cb.id;
+        label.textContent = name;
+
+        row.appendChild(cb);
+        row.appendChild(label);
+        container.appendChild(row);
+    });
+}
+
+document.getElementById('ops-all').addEventListener('click', () => {
+    enabledOps.fill(true);
+    buildOpsList();
+});
+document.getElementById('ops-none').addEventListener('click', () => {
+    enabledOps.fill(false);
+    buildOpsList();
+});
+
+buildOpsList();
+
+</script>
+</body>
+</html>
