@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){}})();</script>
     <title>GPU Animator (CGP & CPPN)</title>
     <link rel="stylesheet" href="style.css">
     <style>
         body {
-            background-color: #e5e5e5;
+            background-color: var(--bg);
+            color: var(--fg);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -24,10 +26,10 @@
         }
         
         .paper-card {
-            background: #fff;
+            background: var(--card-bg);
             padding: 1rem;
-            border: 4px solid #000;
-            box-shadow: 8px 8px 0px #000;
+            border: 4px solid var(--ink);
+            box-shadow: 8px 8px 0px var(--ink);
             margin-bottom: 16px;
             width: 100%;
             box-sizing: border-box;
@@ -35,7 +37,7 @@
         .panel-header {
             font-size: 1.2rem;
             font-weight: 900;
-            border-bottom: 3px dashed #000;
+            border-bottom: 3px dashed var(--ink);
             padding-bottom: 0.5rem;
             margin-bottom: 1rem;
             text-transform: uppercase;
@@ -54,22 +56,22 @@
         }
 
         button, select {
-            background-color: #00ffff;
-            border: 2px solid #000;
+            background-color: var(--btn-bg);
+            border: 2px solid var(--ink);
             font-weight: bold;
             padding: 0.4rem 0.8rem;
             cursor: pointer;
             font-family: inherit;
             text-transform: uppercase;
             transition: all 0.2s;
-            box-shadow: 4px 4px 0px #000;
+            box-shadow: 4px 4px 0px var(--ink);
             margin-top: 5px;
             color: #000;
             width: 100%;
         }
         select { width: auto; font-size: 1rem; padding: 0.2rem 0.5rem; margin: 0; }
-        button:hover, select:hover { background-color: #ff00ff; color: #fff; transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
-        button:active, select:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px #000; }
+        button:hover, select:hover { background-color: #ff00ff; color: #fff; transform: translate(2px, 2px); box-shadow: 2px 2px 0px var(--ink); }
+        button:active, select:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px var(--ink); }
         
         .sidebar-actions {
             display: flex;
@@ -87,7 +89,9 @@
             margin-top: 8px;
         }
         .sidebar-grid-field input, .sidebar-inline-field input {
-            border: 2px solid #000;
+            border: 2px solid var(--ink);
+            background: var(--input-bg);
+            color: var(--fg);
             padding: 4px;
             font-family: inherit;
             margin-top: 4px;
@@ -102,32 +106,34 @@
             cursor: pointer;
             margin-bottom: 4px;
         }
-        .saved-shader-item:hover { background: #ffff00; border-color: #000; color: #000; }
-        .saved-shader-item.active-saved { background: #000; color: #fff; }
+        .saved-shader-item:hover { background: var(--card-hover-bg); border-color: var(--ink); color: #000; }
+        .saved-shader-item.active-saved { background: var(--block-bg); color: var(--block-fg); }
         .saved-shader-item .shader-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-weight: bold; }
         .saved-shader-item .delete-btn {
             background: none; border: none; color: inherit; cursor: pointer; box-shadow: none; font-size: 16px; padding: 0 4px; margin-left: 5px; margin-top: 0; width: auto;
         }
-        .saved-shader-item .delete-btn:hover { color: #ff0000; transform: none; background: none; border: none; box-shadow: none;}
+        .saved-shader-item .delete-btn:hover { color: var(--badge-bg); transform: none; background: none; border: none; box-shadow: none;}
         
         .op-group { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; padding-right: 10px;}
         .op-option { display: flex; align-items: center; padding: 2px 4px; }
-        .op-option:hover { background: #ffff00; }
-        .op-option input[type=checkbox] { cursor: pointer; accent-color: #000; width: 16px; height: 16px; margin: 0;}
+        .op-option:hover { background: var(--card-hover-bg); color: #000; }
+        .op-option input[type=checkbox] { cursor: pointer; accent-color: var(--ink); width: 16px; height: 16px; margin: 0;}
         .op-option label { font-size: 12px; font-family: monospace; margin-left: 8px; user-select: none; font-weight: bold;}
         
         .ops-btn-row { display: flex; gap: 10px; margin-top: 1rem; }
         .ops-btn-row button { flex: 1; padding: 0.2rem; }
 
         .container { position: relative; width: 100%; aspect-ratio: 1; }
-        canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; border: 4px solid #000; box-sizing: border-box;}
+        canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; border: 4px solid var(--ink); box-sizing: border-box;}
         .grid-overlay { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); pointer-events: none; }
-        .grid-cell { box-sizing: border-box; border: 2px solid rgba(0, 0, 0, 0.2); }
+        .grid-cell { box-sizing: border-box; border: 2px solid var(--grid-line); }
         .grid-cell.selected { border: 4px solid #fff; box-shadow: inset 0 0 0 4px #000; mix-blend-mode: difference;}
         
-        #saved-empty { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #666; text-align: center; }
+        #saved-empty { font-size: 12px; font-weight: bold; text-transform: uppercase; color: var(--muted); text-align: center; }
         
         .hidden-panel { display: none !important; }
+
+        nav.top-nav { width: 100%; }
 
         @media (max-width: 860px) {
             .app-layout { flex-direction: column; align-items: stretch; }
@@ -136,6 +142,12 @@
     </style>
 </head>
 <body>
+
+    <nav class="top-nav">
+        <a href="index.html">Home</a>
+        <a href="conference_deadlines.html">PL Deadlines</a>
+        <button class="theme-toggle" aria-label="Toggle colour scheme"></button>
+    </nav>
 
     <div class="paper-card info-window">
         <div class="panel-header">
@@ -1033,5 +1045,7 @@ setMode("cgp");
 checkURL();
 requestAnimationFrame(render);
 </script>
+
+<script src="theme.js"></script>
 </body>
 </html>

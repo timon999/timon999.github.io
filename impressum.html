@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Impressum / Legal - Timon Böhler</title>
+    <script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){}})();</script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,6 +12,7 @@
     <nav class="top-nav">
         <a href="index.html">Home</a>
         <a href="conference_deadlines.html">PL Deadlines</a>
+        <button class="theme-toggle" aria-label="Toggle colour scheme"></button>
     </nav>
 
     <header>
@@ -40,11 +42,11 @@
     </main>
 
     <footer>
-        [ END OF TRANSMISSION ]
         <div class="footer-links">
             <a href="index.html">Home</a>
         </div>
     </footer>
 
+    <script src="theme.js"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PL Conference Deadlines</title>
+<script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){}})();</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="deadlines-page">
@@ -11,6 +12,7 @@
     <nav class="top-nav">
         <a href="index.html">Home</a>
         <a href="conference_deadlines.html">PL Deadlines</a>
+        <button class="theme-toggle" aria-label="Toggle colour scheme"></button>
     </nav>
 
 <div class="compact-container">
@@ -244,4 +246,5 @@ function init() {
 }
 init();
 </script>
+<script src="theme.js"></script>
 </html>

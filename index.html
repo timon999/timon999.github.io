@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Timon Böhler - Academic Profile</title>
+    <script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){}})();</script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,6 +12,7 @@
     <nav class="top-nav">
         <a href="index.html">Home</a>
         <a href="conference_deadlines.html">PL Deadlines</a>
+        <button class="theme-toggle" aria-label="Toggle colour scheme"></button>
     </nav>
 
     <header>
@@ -22,7 +24,7 @@
 
     <main>
         <section id="research">
-            <h2>PUBLICATIONS</h2>
+            <h2>CONFERENCE PUBLICATIONS</h2>
             <ul>
                 <!-- Paper 1 -->
                 <li>
@@ -33,19 +35,6 @@
                             <div class="paper-authors"><strong>Timon Böhler</strong>, Tobias Reinhard, David Richter, Mira Mezini</div>
                             <div class="paper-venue">PACMPL (OOPSLA)</div>
                             <div class="paper-doi">DOI: 10.1145/3798264</div>
-                        </div>
-                    </a>
-                </li>
-                
-                <!-- Paper 2 -->
-                <li>
-                    <a href="https://doi.org/10.1145/3678721.3686231" target="_blank" class="paper-link">
-                        <div class="paper-card">
-                            <div class="year-badge">2024</div>
-                            <span class="paper-title">Incrementalizing Polynomial Functors</span>
-                            <div class="paper-authors"><strong>Timon Böhler</strong>, David Richter, Mira Mezini</div>
-                            <div class="paper-venue">FTfJP</div>
-                            <div class="paper-doi">DOI: 10.1145/3678721.3686231</div>
                         </div>
                     </a>
                 </li>
@@ -64,19 +53,6 @@
                     </a>
                 </li>
 
-                <!-- Paper 4 -->
-                <li>
-                    <a href="https://doi.org/10.1145/3605156.3606456" target="_blank" class="paper-link">
-                        <div class="paper-card">
-                            <div class="year-badge">2023</div>
-                            <span class="paper-title">Using Rewrite Strategies for Efficient Functional Automatic Differentiation</span>
-                            <div class="paper-authors"><strong>Timon Böhler</strong>, David Richter, Mira Mezini</div>
-                            <div class="paper-venue">FTfJP</div>
-                            <div class="paper-doi">DOI: 10.1145/3605156.3606456</div>
-                        </div>
-                    </a>
-                </li>
-
                 <!-- Paper 5 -->
                 <li>
                     <a href="https://doi.org/10.4230/LIPICS.ECOOP.2023.25" target="_blank" class="paper-link">
@@ -87,6 +63,37 @@
                             <div class="paper-venue">ECOOP</div>
                             <div class="paper-award">Distinguished Paper</div>
                             <div class="paper-doi">DOI: 10.4230/LIPICS.ECOOP.2023.25</div>
+                        </div>
+                    </a>
+                </li>
+            </ul>
+        </section>
+
+        <section id="workshop">
+            <h2>WORKSHOP PUBLICATIONS</h2>
+            <ul>
+                <!-- Paper 2 -->
+                <li>
+                    <a href="https://doi.org/10.1145/3678721.3686231" target="_blank" class="paper-link">
+                        <div class="paper-card">
+                            <div class="year-badge">2024</div>
+                            <span class="paper-title">Incrementalizing Polynomial Functors</span>
+                            <div class="paper-authors"><strong>Timon Böhler</strong>, David Richter, Mira Mezini</div>
+                            <div class="paper-venue">FTfJP</div>
+                            <div class="paper-doi">DOI: 10.1145/3678721.3686231</div>
+                        </div>
+                    </a>
+                </li>
+
+                <!-- Paper 4 -->
+                <li>
+                    <a href="https://doi.org/10.1145/3605156.3606456" target="_blank" class="paper-link">
+                        <div class="paper-card">
+                            <div class="year-badge">2023</div>
+                            <span class="paper-title">Using Rewrite Strategies for Efficient Functional Automatic Differentiation</span>
+                            <div class="paper-authors"><strong>Timon Böhler</strong>, David Richter, Mira Mezini</div>
+                            <div class="paper-venue">FTfJP</div>
+                            <div class="paper-doi">DOI: 10.1145/3605156.3606456</div>
                         </div>
                     </a>
                 </li>
@@ -141,5 +148,6 @@
         </div>
     </footer>
 
+    <script src="theme.js"></script>
 </body>
 </html>
