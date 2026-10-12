@@ -7,7 +7,7 @@
     <script>(function(){try{var t=localStorage.getItem('theme');if(!t)t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){}})();</script>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="home">
 
     <nav class="top-nav">
         <a href="index.html">Home</a>
@@ -138,35 +138,11 @@
 
         <section id="teaching">
             <h2>TEACHING</h2>
-            <ul>
-                <li>
-                    <div class="paper-card">
-                        <div class="year-badge">SS 2026</div>
-                        <span class="paper-title">Lecture: Type Systems</span>
-                        <div class="paper-authors">Created exercises and ran weekly exercise session, co-designed exam</div>
-                    </div>
-                </li>
-                <li>
-                    <div class="paper-card">
-                        <div class="year-badge">SS 24 - SS 26</div>
-                        <span class="paper-title">DAIMPL Seminar & IMPL Project</span>
-                        <div class="paper-authors">Supervisor</div>
-                    </div>
-                </li>
-                <li>
-                    <div class="paper-card">
-                        <div class="year-badge">WS 2024</div>
-                        <span class="paper-title">Software Engineering Project</span>
-                        <div class="paper-authors">Supervisor</div>
-                    </div>
-                </li>
-                <li>
-                    <div class="paper-card">
-                        <div class="year-badge">2025-2026</div>
-                        <span class="paper-title">Bachelor Theses</span>
-                        <div class="paper-authors">Supervised three theses</div>
-                    </div>
-                </li>
+            <ul class="compact-list">
+                <li><span class="term">SS 2026</span><span class="item-title">Lecture: Type Systems</span><span class="item-role">Created exercises and ran weekly exercise session, co-designed exam</span></li>
+                <li><span class="term">SS 24 - SS 26</span><span class="item-title">DAIMPL Seminar & IMPL Project</span><span class="item-role">Supervisor</span></li>
+                <li><span class="term">WS 2024</span><span class="item-title">Software Engineering Project</span><span class="item-role">Supervisor</span></li>
+                <li><span class="term">2025-2026</span><span class="item-title">Bachelor Theses</span><span class="item-role">Supervised three theses</span></li>
             </ul>
         </section>
 

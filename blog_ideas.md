@@ -1,3 +1,5 @@
+# (Various lean mini projects)
+
 # thermodynamics of morality
 high moral value connected to low entropy, explains why damaging is easier than helping
 cf.  Gyenis. The Causal Second Law
@@ -40,3 +42,19 @@ possibly making general (SAT/SMT) solvers obsolete? cf. https://c.mov/lymphosat/
 
 # critiques of SQL
 see 3resources/cs/db/
+
+# Mental Models from cs
+
+big-O, space/time-tradeoff, pipelining, span and work, type checking
+
+# X explained in words of one syllable 
+
+# Pollack consistency/trust in machine proofs 
+
+# Altruistic epistemic consequentialism (tragedy of the epistemic commons)
+
+# There are only continuum many possible universes 
+
+# Detecting ai images by inconsistent reflections in left vs right eyes (does it still work)
+
+# Review: Papers on Fixed Points
